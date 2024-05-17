@@ -70,7 +70,6 @@ interface ErrorOption {
 const defaultLogServer = 'https://sp1.baidu.com/5b1ZeDe5KgQFm2e88IuM_a/mwb2.gif?';
 // 基础版本兼容非浏览器环境
 const ver = navigator && navigator.userAgent ? navigator.userAgent.toLowerCase().match(/cpu iphone os (.*?)_/) : '';
-const isLtIos14 = ver && ver[2] && (+ver[2] < 14);
 
 
 function err(msg: string) {
@@ -117,18 +116,12 @@ export default class SpyClient {
         this.option = {
             pid: option.pid,
             lid: option.lid,
-            check: option.check !== false,
             sample: option.sample,
-            localCache: option.localCache,
             logServer: option.logServer || defaultLogServer,
         };
     }
 
     handle(logItem: any) {
-        if (!this.check(logItem)) {
-            return;
-        }
-
         logItem = assign(
             {
                 pid: this.option.pid,
@@ -138,10 +131,6 @@ export default class SpyClient {
             },
             logItem
         );
-
-        if (this.option.localCache) {
-            this.option.localCache.addLog(logItem);
-        }
 
         // 当前api设置了抽样，
         if (typeof logItem.sample === 'number') {
@@ -157,99 +146,18 @@ export default class SpyClient {
         return logItem;
     }
 
-    send(data: any, post = false) {
+    send(data: any) {
         let logItems: any[] = isArray(data) ? data : [data];
 
-        let postData = [];
         for (let logItem of logItems) {
             logItem = this.handle(logItem);
             if (!logItem) {
                 continue;
             }
 
-            postData.push(logItem);
-
-            // 期望通过post方式上传日志
-            if (post) {
-                continue;
-            }
-
             const url = this.option.logServer + stringify(logItem);
             this.request(url);
         }
-        if (post) {
-            this.sendPost(postData);
-        }
-    }
-
-    check(query: any): boolean {
-        if (!this.option.check) {
-            return true;
-        }
-
-        const types = ['perf', 'except', 'dist', 'count'];
-        if (types.indexOf(query.type) === -1) {
-            err('type only is one of ' + types.join(', '));
-            return false;
-        }
-
-        if (query.group && query.group.length > 30) {
-            err('group length execeeds 30');
-            return false;
-        }
-
-        const simpleReg = /^[a-zA-Z0-9-_]{0,30}$/;
-
-        if (query.type === 'except') {
-            if (
-                !(typeof query.info.msg === 'string' && query.info.msg.length)
-            ) {
-                err('info.msg field must be not empty and is String');
-                return false;
-            }
-        }
-        else {
-            for (const infoKey of Object.keys(query.info)) {
-                if (!simpleReg.test(infoKey)) {
-                    err(`info.${infoKey} is unexpected. `
-                        + 'Length must be not more than 30. '
-                        + 'Supported chars: a-zA-Z0-9-_');
-                    return false;
-                }
-
-                const infoVal = query.info[infoKey];
-                if (query.type === 'dist') {
-                    if (infoVal.length > 30) {
-                        err(`info.${infoKey} value length execeeds 30 when type == 'dist'`);
-                        return false;
-                    }
-                }
-                else if (typeof infoVal !== 'number') {
-                    err(`info.${infoKey} value must be number`);
-                    return false;
-                }
-            }
-        }
-
-        if (query.dim) {
-            for (const dimKey of Object.keys(query.dim)) {
-                if (!simpleReg.test(dimKey)) {
-                    err(`dim key [${dimKey}] is unexpected. `
-                        + 'Length must be not more than 30. '
-                        + 'Supported chars: a-zA-Z0-9-_');
-                    return false;
-                }
-                const dimVal = query.dim[dimKey];
-                if (!/^[a-zA-Z0-9\-_\*\.\s\/#\+@\&\u4e00-\u9fa5]{0,30}$/.test(dimVal)) {
-                    err(`dim.${dimKey} value [${dimVal}] is unexpected. `
-                        + 'Length must be not more than 30. '
-                        + 'Supported chars: a-zA-Z0-9-_*. /#+@& and Chinese');
-                    return false;
-                }
-            }
-        }
-
-        return true;
     }
 
     /**
@@ -339,51 +247,8 @@ export default class SpyClient {
         this.markCache = {};
     }
 
-    // send(data, true) 也能以post发送，但是会有严格校验
-    // sendPost能以post发送，但没有校验
-    sendPost(data: any) {
-        let logItems: any[] = isArray(data) ? data : [data];
-        const first = logItems[0];
-        // 需要在页面暴漏出来pid等基本信息，方式调试查看基本信息与兼容目前的监控
-        const query = {
-            pid: first.pid,
-            type: first.type,
-            group: first.group,
-        };
-        const url = this.option.logServer + stringify(query);
-
-        this.request(url, data);
-    }
-
     // 有data时，意味着要用post发送请求
-    protected request(url: string, data?: any) {
-        if (!(
-            !isLtIos14
-            && navigator
-            && navigator.sendBeacon
-            && navigator.sendBeacon(url, data ? JSON.stringify(data) : undefined)
-        )) {
-            if (data) {
-                this.fetch(url, data);
-            }
-            else {
-                (new Image()).src = url;
-            }
-        }
-    }
-
-    protected fetch(url: string, data: any) {
-        if (!fetch) {
-            err('Global fetch method doesn\'t exist');
-            return;
-        }
-        fetch(url, {
-            method: 'POST',
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data),
-        });
+    protected request(url: string) {
+        (new Image()).src = url;
     }
 }

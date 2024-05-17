@@ -4,7 +4,6 @@
  */
 
 import * as error from './head/error';
-import * as observer from './head/observer';
 import * as whitescreen from './head/whitescreen';
 import spyHead from './head/base';
 
@@ -19,7 +18,7 @@ spyHead.init = function (conf: SpyHeadConf) {
     this.conf = conf;
 
     error.init(conf);
-    observer.init();
+    // observer.init(); // 开发阶段可以发现
     whitescreen.init(conf);
 };
 

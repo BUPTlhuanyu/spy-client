@@ -45,22 +45,6 @@ export default class Timing implements Module {
         // 当然在onload事件处理函数里启动了异步方法，不再纳入范围内
         metric.load = timing.loadEventEnd - startTime;
 
-        // 浏览器首次绘制与首次内容绘制， ios低版本无getEntriesByType api
-        if (performance.getEntriesByType) {
-            const paintEntries: PerformanceEntry[] = performance.getEntriesByType('paint');
-            if (paintEntries && paintEntries.length) {
-                paintEntries.forEach(({name, duration, startTime}) => {
-                    const time = Math.ceil(duration + startTime);
-                    if (name === 'first-paint') {
-                        metric.fp = time;
-                    }
-                    if (name === 'first-contentful-paint') {
-                        metric.fcp = time;
-                    }
-                });
-            }
-        }
-
         // 端首次绘制与首屏
         if (timing.domFirstPaint) {
             metric.t7FirstPaint = timing.domFirstPaint - startTime;

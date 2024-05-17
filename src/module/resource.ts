@@ -52,7 +52,6 @@ interface ListWithHost {
 export default class Resource implements Module {
     private cb: ResourceCB;
     private bigImgCB: ResourceErrorCB;
-    private httpResCB: ResourceErrorCB;
     private slowResCB: ResourceErrorCB;
     private resOption: ResOption;
     private bigImgOption: BigImgOption;
@@ -109,15 +108,6 @@ export default class Resource implements Module {
         this.bigImgCB = cb;
     }
 
-    listenHttpResource(cb: ResourceErrorCB, option: HttpResOption = {}) {
-        if (!this.check()) {
-            return;
-        }
-        this.httpResOption = assign(this.httpResOption, option);
-        this.trigger = this.httpResOption.trigger as string;
-        this.httpResCB = cb;
-    }
-
     listenSlowResource(cb: ResourceErrorCB, option: SlowOption = {}) {
         if (!this.check()) {
             return;
@@ -145,33 +135,6 @@ export default class Resource implements Module {
                             try {
                                 const img = document.body.querySelector('img[src="' + timing.name + '"]');
                                 this.bigImgCB({
-                                    msg: timing.name,
-                                    dur: timing.duration,
-                                    xpath: getxpath(img).xpath,
-                                    host,
-                                    type,
-                                });
-                            }
-                            catch (e) {
-                                console.error(e);
-                            }
-                        }
-                    }
-                });
-            }
-        }
-
-        if (this.httpResCB) {
-            // 发送http资源监控数据
-            if (typeof window.requestIdleCallback === 'function' && Object.keys(this.httpResList).length) {
-                window.requestIdleCallback(() => {
-                    for (const host of Object.keys(this.httpResList)) {
-                        for (const entry of this.httpResList[host]) {
-                            const timing = entry.timing;
-                            const type = entry.type;
-                            try {
-                                const img = document.body.querySelector('[src="' + timing.name + '"]');
-                                this.httpResCB({
                                     msg: timing.name,
                                     dur: timing.duration,
                                     xpath: getxpath(img).xpath,

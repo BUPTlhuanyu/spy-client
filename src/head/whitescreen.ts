@@ -18,7 +18,6 @@ export function init(conf: SpyHeadConf) {
     const selector = whiteScreenError.selector;
     const subSelector = whiteScreenError.subSelector;
     const timeout = whiteScreenError.timeout || 6000;
-    const isSend = Math.random() < (whiteScreenError.sample ? whiteScreenError.sample : 0);
 
     // 补充白屏信息：期间的网络时间
     function getNetTime() {
@@ -97,7 +96,7 @@ export function init(conf: SpyHeadConf) {
                 }
 
                 if (allow !== false && obj.info.msg) {
-                    spyHead && spyHead.send(obj, isSend);
+                    spyHead && spyHead.send(obj);
                 }
             }
         }, timeout);

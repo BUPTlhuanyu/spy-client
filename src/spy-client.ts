@@ -9,36 +9,19 @@ import {
     Module,
     SpyClientOption,
 
-    FIDCB,
     LCPCB,
-    LayoutShiftCB,
-    PageLongtaskCB,
-    LoadLongtaskCB,
-    LCPLongtaskCB,
-    FSPLongtaskCB,
-    MemoryCB,
-    NavigatorInfoMetric,
     ResourceCB,
     ResourceErrorCB,
     TimingCB,
-    TTICB,
-    TTIOption,
 
     ResOption,
     BigImgOption,
-    HttpResOption,
     SlowOption,
 } from './lib/interface';
 
-import FID from './module/fid';
-import LayoutShift from './module/layoutShift';
-import LCP from './module/lcp';
-import TTI from './module/tti';
 import Timing from './module/timing';
 import Resource from './module/resource';
-import Memory from './module/memory';
-import NavigatorInfo from './module/navigatorInfo';
-import Longtask from './module/longtask';
+import LCP from './module/lcp';
 
 export default class SpyClient extends SpyClientBasic {
     private readonly modules: Module[] = [];
@@ -46,15 +29,9 @@ export default class SpyClient extends SpyClientBasic {
     constructor(option: SpyClientOption) {
         super(option);
 
-        this.register(new FID());
-        this.register(new LCP());
-        this.register(new LayoutShift());
-        this.register(new TTI());
         this.register(new Timing());
         this.register(new Resource());
-        this.register(new Memory());
-        this.register(new NavigatorInfo());
-        this.register(new Longtask());
+        this.register(new LCP());
 
         this.visibilitychangeCB = this.visibilitychangeCB.bind(this);
         this.load = this.load.bind(this);
@@ -70,60 +47,17 @@ export default class SpyClient extends SpyClientBasic {
         document.addEventListener('visibilitychange', this.visibilitychangeCB);
         window.addEventListener('beforeunload', this.leave, false);
         window.addEventListener('unload', this.leave, false);
-
-        this.handleHead();
     }
 
-    handleHead() {
-        if (this.option.localCache) {
-            const spyHead = window.__spyHead;
-            if (spyHead && spyHead.winerrors) {
-                for (let index = 0; index < spyHead.winerrors.length; index++) {
-                    const obj = spyHead.winerrors[index];
-                    this.option.localCache.addLog(obj);
-                }
-                // Head发送的异常，也保存一份到本地，主要是JS错误和资源加载异常
-                spyHead.interceptor = (obj: any) => {
-                    this.option.localCache.addLog(obj);
-                };
-            }
+    load() {
+        for (let index = 0; index < this.modules.length; index++) {
+            const mod = this.modules[index];
+            mod.load && mod.load();
         }
-    }
-
-    listenFID(cb: FIDCB) {
-        this.invoke('listenFID', cb as any);
-    }
-
-    listenLayoutShift(cb: LayoutShiftCB) {
-        this.invoke('listenLayoutShift', cb as any);
     }
 
     listenLCP(cb: LCPCB) {
         this.invoke('listenLCP', cb as any);
-    }
-
-    listenFSPLongTask(cb: FSPLongtaskCB) {
-        this.invoke('listenFSPLongTask', cb as any);
-    }
-
-    listenLCPLongTask(cb: LCPLongtaskCB) {
-        this.invoke('listenLCPLongTask', cb as any);
-    }
-
-    listenLoadLongTask(cb: LoadLongtaskCB) {
-        this.invoke('listenLoadLongTask', cb as any);
-    }
-
-    listenPageLongTask(cb: PageLongtaskCB) {
-        this.invoke('listenPageLongTask', cb as any);
-    }
-
-    listenMemory(cb: MemoryCB) {
-        this.invoke('listenMemory', cb as any);
-    }
-
-    getNavigatorInfo(): NavigatorInfoMetric {
-        return this.invoke('getNavigatorInfo');
     }
 
     listenResource(cb: ResourceCB, option?: ResOption) {
@@ -134,20 +68,12 @@ export default class SpyClient extends SpyClientBasic {
         this.invoke('listenBigImg', cb as any, option);
     }
 
-    listenHttpResource(cb: ResourceErrorCB, option?: HttpResOption) {
-        this.invoke('listenHttpResource', cb as any, option);
-    }
-
     listenSlowResource(cb: ResourceErrorCB, option?: SlowOption) {
         this.invoke('listenSlowResource', cb as any, option);
     }
 
     listenTiming(cb: TimingCB) {
         this.invoke('listenTiming', cb as any);
-    }
-
-    listenTTI(cb: TTICB, option?: TTIOption) {
-        this.invoke('listenTTI', cb as any, option as any);
     }
 
     invoke(name: string, cb?: any, option?: any) {
@@ -162,13 +88,6 @@ export default class SpyClient extends SpyClientBasic {
 
     register(mod: Module) {
         this.modules.push(mod);
-    }
-
-    load() {
-        for (let index = 0; index < this.modules.length; index++) {
-            const mod = this.modules[index];
-            mod.load && mod.load();
-        }
     }
 
     leave() {
